@@ -1,0 +1,73 @@
+{
+  debug
+
+  #Caddy Security conf (https://github.com/greenpau/caddy-security)
+  security {
+    authentication portal myportal {
+      crypto default token lifetime 3600
+      crypto key sign-verify a3c6eeee16e4479e9f31786e30b3ebdc
+       
+      backends {
+        ldap_backend {
+          method ldap
+          realm localhost #FIXME
+          servers {
+            ldap://glauth:389 ignore_cert_errors posix_groups
+          }
+          attributes {
+            name givenname
+            surname sn
+            username name
+            #member_of primarygroup #memberOf
+            email mail
+          }
+          username "CN=searchuser,DC=LOCALHOST,DC=DE,OU=TEST"
+          password "password"
+          search_base_dn "DC=LOCALHOST,DC=DE,OU=TEST" #FIXME
+          search_filter "(|(name=%s)(mail=%s))"
+          groups {
+            "CN=people,OU=TEST,DC=LOCALHOST,DC=DE" people
+            "CN=5501,OU=TEST,DC=LOCALHOST,DC=DE" people2
+          }
+        }
+      }
+
+      cookie domain localhost
+      ui {
+        links {
+          #FIXME
+          "My Website (super secret)" "/foo"
+          "My Identity" "/whoami"
+        }
+      }
+    }
+
+    authorization policy mypolicy {
+      set auth url /auth/
+      crypto key sign-verify a3c6eeee16e4479e9f31786e30b3ebdc
+      allow roles people people2 user
+    }
+  }
+
+}
+
+localhost:80/* {
+  redir /foo /foo/
+  handle_path /foo/* {
+    route {
+      authorize with mypolicy
+    }
+    respond * "foobar website" 200
+    
+  }
+
+  handle {
+    route /auth* {
+      authenticate * with myportal
+    }
+	
+    respond * "public foobar website" 200
+  }
+
+}
+

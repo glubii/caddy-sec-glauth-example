@@ -1,0 +1,44 @@
+version: "3"
+services:
+        caddy:
+                build: ./caddy
+                restart: unless-stopped
+                ports:
+                        - "8080:80"
+                volumes:
+                        - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+                        - ./caddy/data:/data
+                        - ./caddy/config:/config
+                networks:
+                        - public
+                        - shared
+        glauth-ui:
+                image: traverseda/glauth-ui
+                ports:
+                        - "5000:5000"
+                volumes:
+                # Mount Folder that contains DB and config file outside the container
+                        - './glauth:/home/ldap/db'
+                networks:
+                        - public
+                        - shared
+                environment:
+                        - SECRET_KEY=mysuperlongsecretkeythatnobodywillguess #FIXME: env
+                          #- SCRIPT_NAME=/ldap #Enables us to serve this under a subpath
+                        - ORGANISATION=TEST
+                        
+        glauth:
+                image: glauth/glauth
+                ports: 
+                        - "389:389" #LDAP
+                volumes:
+                        - "./glauth/config.cfg:/app/config/config.cfg"
+                networks:
+                        - public
+                        - shared
+
+networks:
+        public:
+                internal: false
+        shared:
+                internal: true
